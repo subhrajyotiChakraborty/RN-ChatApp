@@ -8,14 +8,16 @@ import {
   ScrollView,
   BackHandler,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Alert,
 } from 'react-native';
 
-import { useHeaderHeight } from '@react-navigation/stack';
+import {useHeaderHeight} from '@react-navigation/stack';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {StackActions} from '@react-navigation/native';
 import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-community/async-storage';
+import Spinner from 'react-native-loading-spinner-overlay';
 
 import ChatBubble from '../components/ChatBubble';
 
@@ -25,6 +27,7 @@ const ChatScreen = ({navigation}) => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [userData, setUserData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const headerHeight = useHeaderHeight();
 
@@ -37,16 +40,32 @@ const ChatScreen = ({navigation}) => {
   useEffect(() => {
     loadMessages();
     getUserData();
-    const listener = BackHandler.addEventListener('hardwareBackPress', () => true);
+    const listener = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true,
+    );
     return () => {
-     listener.remove();
+      listener.remove();
     };
   }, []);
   useEffect(() => {
-    chatContainer && chatContainer.current && chatContainer.current.scrollToEnd({
-      animated: true
-    });
-  }, [messages])
+    chatContainer &&
+      chatContainer.current &&
+      chatContainer.current.scrollToEnd({
+        animated: true,
+      });
+  }, [messages]);
+
+  const confirmationAlert = () => {
+    Alert.alert('Log out', 'Are you sure, you want to log out?', [
+      {
+        text: 'Cancel',
+        onPress: () => console.log('Cancel Pressed'),
+        style: 'cancel',
+      },
+      {text: 'Confirm', onPress: () => logOut()},
+    ]);
+  };
 
   const logOut = async () => {
     try {
@@ -82,15 +101,17 @@ const ChatScreen = ({navigation}) => {
             let obj = {
               sender: data['sender'],
               body: data['body'],
-              date: `${data["date"]}`
+              date: `${data['date']}`,
             };
             msgArr.push(obj);
           });
           console.log(msgArr);
           setMessages(msgArr);
-          chatContainer && chatContainer.current && chatContainer.current.scrollToEnd({
-            animated: true
-          });
+          chatContainer &&
+            chatContainer.current &&
+            chatContainer.current.scrollToEnd({
+              animated: true,
+            });
         });
     } catch (error) {
       console.log(error);
@@ -115,7 +136,9 @@ const ChatScreen = ({navigation}) => {
 
   const logOutView = () => {
     return (
-      <TouchableOpacity style={styles.logOutBtn} onPress={() => logOut()}>
+      <TouchableOpacity
+        style={styles.logOutBtn}
+        onPress={() => confirmationAlert()}>
         <Text style={styles.logOutBtnText}>Log Out</Text>
       </TouchableOpacity>
     );
@@ -124,39 +147,46 @@ const ChatScreen = ({navigation}) => {
   const messageView = () => {
     if (userData) {
       return messages.map(({sender, body, date}) => {
-        return <ChatBubble key={date} sender={sender} message={body} isUser={userData.email === sender} />;
+        return (
+          <ChatBubble
+            key={date}
+            sender={sender}
+            message={body}
+            isUser={userData.email === sender}
+          />
+        );
       });
     } else {
-      return null
+      return null;
     }
   };
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS == "ios" ? "padding" : null}
-      style={styles.keyBoardContainer}
-      keyboardVerticalOffset={headerHeight}>
-      <View style={styles.chatContainer}>
-        <ScrollView showsVerticalScrollIndicator={false} ref={chatContainer}>
-          {
-            messageView()
-          }
-        </ScrollView>
-      </View>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={message}
-          onChangeText={msg => setMessage(msg)}
-          multiline={true}
-          placeholder="Write a message..."
-        />
-        <TouchableOpacity
-          style={styles.sendIconContainer}
-          onPress={() => sendMessage()}>
-          <Icon name="send" style={styles.sendIcon} />
-        </TouchableOpacity>
-      </View>
+      <Spinner visible={isLoading} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS == 'ios' ? 'padding' : null}
+        style={styles.keyBoardContainer}
+        keyboardVerticalOffset={headerHeight}>
+        <View style={styles.chatContainer}>
+          <ScrollView showsVerticalScrollIndicator={false} ref={chatContainer}>
+            {messageView()}
+          </ScrollView>
+        </View>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            value={message}
+            onChangeText={msg => setMessage(msg)}
+            multiline={true}
+            placeholder="Write a message..."
+          />
+          <TouchableOpacity
+            style={styles.sendIconContainer}
+            onPress={() => sendMessage()}>
+            <Icon name="send" style={styles.sendIcon} />
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -203,7 +233,7 @@ const styles = StyleSheet.create({
   },
   logOutBtnText: {
     fontSize: 16,
-  }
+  },
 });
 
 export default ChatScreen;
